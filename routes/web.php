@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CorrectResultController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::resource('correct-results', CorrectResultController::class);
+Route::get('/', CorrectResultController::class.'@index');
