@@ -10,15 +10,10 @@ class CorrectResult extends Model
     use HasFactory;
 
     protected $fillable = [
-        'letters_mapping',
-        'first_input',
-        'second_input',
-        'third_input',
-        'sum_input',
-        'query_first_input',
-        'query_second_input',
-        'query_third_input',
-        'query_sum',
-        'attempts',
+        'letters',
+        'sum_letters',
+        'result',
+        'found_at_round',
+        'max_round'
     ];
 }

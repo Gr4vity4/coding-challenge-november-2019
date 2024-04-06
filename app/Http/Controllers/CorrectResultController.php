@@ -7,54 +7,122 @@ use Illuminate\Http\Request;
 
 class CorrectResultController extends Controller
 {
-    function convertStringToNumber($string, $mapping)
+    private $words = ['HIER', 'GIBT', 'ES', 'NEUES'];
+
+    public function randomNumber($min = 0, $max = 9, $buffer)
     {
-        $result = "";
-        for ($i = 0; $i < strlen($string); $i++) {
-            // Append the corresponding number to the result string
-            $result .= $mapping[$string[$i]];
-        }
-        // Convert the result string to integer
-        return (int)$result;
-    }
+        while (true) {
+            $random_number = rand($min, $max);
 
-    function firstCharNotZeroMapping($input, $data)
-    {
-        if (isset($input[0]) && array_key_exists($input[0], $data) && $data[$input[0]] === "0") {
-            return false; // The first character maps to 0, not good.
-        }
+            if (!in_array($random_number, $buffer->all())) {
+                $buffer->push($random_number);
 
-        return true; // The first character does not map to 0, good.
-    }
-
-    private function findMatch($data)
-    {
-        // dump($data);
-
-        // Flag to keep track of whether a match has been found
-        $found = false;
-
-        // Counter for the number of attempts
-        $attempts = 0;
-
-        // Start the search for the correct assignment of letters to numbers that matches the target sum
-        while (!$found) {
-            $attempts++;
-
-            $first = rand(0, 9) * 1000 + rand(0, 9) * 100 + rand(0, 9) * 10 + rand(0, 9);
-            $second = rand(0, 9) * 1000 + rand(0, 9) * 100 + rand(0, 9) * 10 + rand(0, 9);
-            $last = rand(0, 9) * 10 + rand(0, 9);
-            $currentSum = $first + $second + $last;
-
-            // Check if the current sum matches the target sum
-            if ($currentSum == $data['sum']) {
-                $found = true;
-                // dump($first, $second, $last, $currentSum);
-                // echo "Found a match after {$attempts} attempts:\n";
+                break;
             }
         }
 
-        return (object)['attempts' => $attempts, 'first' => $first, 'second' => $second, 'last' => $last, 'currentSum' => $currentSum];
+        return $buffer->last();
+    }
+
+    public function randomNumberFromList($numbers, $buffer)
+    {
+        while (true) {
+            if (count($numbers) == 1) {
+                $randomNumber = $numbers[0];
+            } else {
+                $randomNumber = $numbers[rand(0, count($numbers) - 1)];
+            }
+
+            if (!in_array($randomNumber, $buffer->all())) {
+                $buffer->push($randomNumber);
+
+                break;
+            }
+        }
+
+        return $buffer->last();
+    }
+
+    public function calc($maxRound = 10)
+    {
+        // HIER + GIBT + ES = NEUES
+        $found = collect();
+
+        for ($round = 0; $round < $maxRound; $round++) {
+            $keepNumbers = collect();
+
+//            $chars = [
+//                'H' => $this->randomNumber(1, 9, $keep_numbers),
+//                'I' => $this->randomNumber(0, 9, $keep_numbers),
+//                'E' => $this->randomNumber(1, 9, $keep_numbers),
+//                'R' => $this->randomNumber(0, 9, $keep_numbers),
+//                'G' => $this->randomNumber(1, 9, $keep_numbers),
+//                'B' => $this->randomNumber(0, 9, $keep_numbers),
+//                'T' => $this->randomNumber(0, 9, $keep_numbers),
+//                'N' => $this->randomNumber(1, 9, $keep_numbers),
+//                'U' => $this->randomNumber(0, 9, $keep_numbers),
+//                'S' => $this->randomNumber(0, 9, $keep_numbers)
+//            ];
+
+            /* find possible lists number from randomNumber method.
+                H = [6, 9]
+                I = [3]
+                E = [5]
+                R = [2, 8]
+                G = [6, 9]
+                B = [4]
+                T = [2, 8]
+                N = [1]
+                U = [7]
+                S = [0]
+            */
+
+            $chars = [
+                'H' => $this->randomNumberFromList([6, 9], $keepNumbers),
+                'I' => $this->randomNumberFromList([3], $keepNumbers),
+                'E' => $this->randomNumberFromList([5], $keepNumbers),
+                'R' => $this->randomNumberFromList([2, 8], $keepNumbers),
+                'G' => $this->randomNumberFromList([6, 9], $keepNumbers),
+                'B' => $this->randomNumberFromList([4], $keepNumbers),
+                'T' => $this->randomNumberFromList([2, 8], $keepNumbers),
+                'N' => $this->randomNumberFromList([1], $keepNumbers),
+                'U' => $this->randomNumberFromList([7], $keepNumbers),
+                'S' => $this->randomNumberFromList([0], $keepNumbers)
+            ];
+
+            $groupNumber = collect();
+
+            foreach ($this->words as $word) {
+                $word_number = '';
+
+                foreach (str_split($word) as $char) {
+                    $word_number .= $chars[$char];
+                }
+
+                $groupNumber->push($word_number);
+            }
+
+            $sumLetters = $groupNumber->all()[0] + $groupNumber->all()[1] + $groupNumber->all()[2];
+            $result = $groupNumber->all()[3];
+
+            if (strlen($sumLetters) == 5) { // length should be 5 because "NEUES" has 5 length
+                if ($sumLetters == $result) {
+                    $found->push([
+                        'letters' => $chars,
+                        'sum_letters' => $sumLetters,
+                        'result' => $result,
+                        'found_at_round' => $round
+                    ]);
+//                    echo 'congratulations! at round ' . $round . ' - ' . json_encode($chars) . '<br/>';
+                }
+            }
+        }
+
+        $uniqueLetters = $found->unique(function ($item) {
+            return json_encode($item['letters']);
+        });
+
+        return $uniqueLetters->values()->toArray();
     }
 
     /**
@@ -80,65 +148,20 @@ class CorrectResultController extends Controller
      */
     public function store(Request $request)
     {
-        // dd($request->all());
+        $maxRound = 10;
+        $lists = $this->calc($maxRound);
 
-        // Extract the mapping and inputs
-        $mapping = array_slice($request->all(), 1, 10); // Extracting only the letter-to-number mappings
-        $firstInput = $request->first_input;
-        $secondInput = $request->second_input;
-        $thirdInput = $request->third_input;
+        foreach ($lists as $list) {
+            $prepareData = [
+                'letters' =>  json_encode($list['letters']),
+                'sum_letters' =>  intval($list['sum_letters']),
+                'result' =>  intval($list['result']),
+                'found_at_round' =>  $list['found_at_round'],
+                'max_round' => $maxRound
+            ];
 
-        // * validate numbers
-        // Count the occurrences of each value
-        $valueCounts = array_count_values($mapping);
-
-        // Filter out the values that appear more than once
-        $duplicates = array_filter($valueCounts, function ($count) {
-            return $count > 1;
-        });
-
-        // Checking if there are any duplicates
-        if (!empty($duplicates)) {
-            return redirect()->back()->with('error', 'The numbers must be unique!')
-                ->withInput();
+            CorrectResult::create($prepareData);
         }
-
-        // * validate first char not zero
-        // Check the first character of each input
-        $validFirstInput = $this->firstCharNotZeroMapping($firstInput, $request->all());
-        $validSecondInput = $this->firstCharNotZeroMapping($secondInput, $request->all());
-        $validThirdInput = $this->firstCharNotZeroMapping($thirdInput, $request->all());
-
-        if (!$validFirstInput || !$validSecondInput || !$validThirdInput) {
-            return redirect()->back()->with('error', 'The first character of each input must not map to 0!')->withInput();
-        }
-
-        // Convert and display the results
-        $firstResult = $this->convertStringToNumber($firstInput, $mapping);
-        $secondResult = $this->convertStringToNumber($secondInput, $mapping);
-        $thirdResult = $this->convertStringToNumber($thirdInput, $mapping);
-
-        // Sum the converted numbers
-        $sum = $firstResult + $secondResult + $thirdResult;
-
-        // echo "First input ($firstInput) converted to number: $firstResult\n";
-        // echo "Second input ($secondInput) converted to number: $secondResult\n";
-        // echo "Third input ($thirdInput) converted to number: $thirdResult\n";
-
-        $result = $this->findMatch(['sum' => $sum]);
-
-        CorrectResult::create([
-            'letters_mapping' => json_encode($mapping),
-            'first_input' => $firstInput,
-            'second_input' => $secondInput,
-            'third_input' => $thirdInput,
-            'sum_input' => $sum,
-            'query_first_input' => $result->first,
-            'query_second_input' => $result->second,
-            'query_third_input' => $result->last,
-            'query_sum' => $result->currentSum,
-            'attempts' => $result->attempts,
-        ]);
 
         $correctResults = CorrectResult::latest()->paginate(5);
 

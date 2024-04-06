@@ -13,16 +13,11 @@ return new class extends Migration
     {
         Schema::create('correct_results', function (Blueprint $table) {
             $table->id();
-            $table->string('letters_mapping');
-            $table->string('first_input');
-            $table->string('second_input');
-            $table->string('third_input');
-            $table->unsignedInteger('sum_input');
-            $table->unsignedInteger('query_first_input');
-            $table->unsignedInteger('query_second_input');
-            $table->unsignedInteger('query_third_input');
-            $table->unsignedInteger('query_sum');
-            $table->unsignedInteger('attempts');
+            $table->string('letters');
+            $table->unsignedInteger('sum_letters');
+            $table->unsignedInteger('result');
+            $table->unsignedInteger('found_at_round');
+            $table->unsignedInteger('max_round');
             $table->timestamps();
         });
     }
